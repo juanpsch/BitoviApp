@@ -1,3 +1,6 @@
+
+
+
 # Bitovi AI Search & RAG Orchestrator
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
@@ -7,6 +10,8 @@
 
 ## 🚀 Overview
 An advanced **Autonomous RAG Agent** engineered for Bitovi's technical ecosystem. This system utilizes **LangGraph** to manage complex state transitions, ensuring high-fidelity knowledge retrieval and synthesis from local LLM instances.
+
+https://github.com/user-attachments/assets/4ee2c75e-2270-47ab-9ba0-2d475cea9b19
 
 ## 🛠 Tech Stack
 *   **Engine**: Python 3.12
