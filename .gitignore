@@ -3,6 +3,19 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# --- Environment & Secrets ---
+.env
+env/
+venv/
+.venv/
+
+# --- Database & RAG Data ---
+# Ignora las carpetas de persistencia de Chroma o cualquier DB local
+**/chroma_db/
+**/data/
+*.sqlite
+*.db
+
 # C extensions
 *.so
 
