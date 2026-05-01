@@ -29,11 +29,12 @@ An advanced **Autonomous RAG Agent** engineered for Bitovi's technical ecosystem
 The agent follows a sophisticated conditional workflow to ensure quality:
 
 1.  **Intent Analyzer**: Categorizes query intent.
-2.  **Select Retrieval Strategy Analyzer**: Set the best retrieval strategy for the requested data set.
-3.  **Query Optimizer**: Resolves acronyms (e.g., K8s, RAG) using a custom technical glossary.
-4.  **Retrieval Node**: Interacts with the `retrieve_docs` tool.
-5.  **Grade Retrieval**: A self-correction layer that triggers the **Expansion Node** if the context relevance score is below threshold ($< 0.6$).
-6.  **Dynamic Routing**: A logical gateway routes the state to specialized generators (`Standard Generator` vs. `Listing Generator`) based on the task type.
+2.  **Get query parameters**: Obtain from the query sorting stategy and top_k elements.
+3.  **Retrieval Strategy**: Set the best retrieval strategy for the requested data set.
+4.  **Query Optimizer**: Resolves acronyms (e.g., K8s, RAG) using a custom technical glossary.
+5.  **Retrieval Node**: Interacts with the `retrieve_docs` tool.
+6.  **Grade Retrieval**: A self-correction layer that triggers the **Expansion Node** if the context relevance score is below threshold ($< 1.0$).
+7.  **Dynamic Routing**: A logical gateway routes the state to specialized generators (`Standard Generator` vs. `Listing Generator`) based on the task type.
 
 
 The following section details the logical flow of the system built with LangGraph. The agent performs intent analysis, optimizes vector database retrieval, and dynamically determines whether additional tools or query expansion are required before generating the final response.
