@@ -11,7 +11,11 @@
 ## 🚀 Overview
 An advanced **Autonomous RAG Agent** engineered for Bitovi's technical ecosystem. This system utilizes **LangGraph** to manage complex state transitions, ensuring high-fidelity knowledge retrieval and synthesis from local LLM instances.
 
-https://github.com/user-attachments/assets/4ee2c75e-2270-47ab-9ba0-2d475cea9b19
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=eCbAX8MOTao">
+    <img src="https://img.youtube.com/vi/eCbAX8MOTao/maxresdefault.jpg" alt="Ver video" style="width:100%;">
+  </a>
+</div>
 
 ## 🛠 Tech Stack
 *   **Engine**: Python 3.12
