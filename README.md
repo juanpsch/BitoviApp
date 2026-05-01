@@ -22,6 +22,9 @@ An advanced **Autonomous RAG Agent** engineered for Bitovi's technical ecosystem
 *   **Orchestration**: LangGraph & LangChain
 *   **State Management**: Pydantic-validated `AgentState`
 
+
+
+
 ## 🧠 Graph Architecture
 The agent follows a sophisticated conditional workflow to ensure quality:
 
@@ -31,6 +34,12 @@ The agent follows a sophisticated conditional workflow to ensure quality:
 4.  **Retrieval Node**: Interacts with the `retrieve_docs` tool.
 5.  **Grade Retrieval**: A self-correction layer that triggers the **Expansion Node** if the context relevance score is below threshold ($< 0.6$).
 6.  **Dynamic Routing**: A logical gateway routes the state to specialized generators (`Standard Generator` vs. `Listing Generator`) based on the task type.
+
+
+The following section details the logical flow of the system built with LangGraph. The agent performs intent analysis, optimizes vector database retrieval, and dynamically determines whether additional tools or query expansion are required before generating the final response.
+### Graph Structure
+<img width="391" height="853" alt="graph" src="https://github.com/user-attachments/assets/7a537798-bfb9-4642-a1a1-891539ed7a02" />
+
 
 ## 📁 Repository Structure
 ```text
@@ -59,32 +68,3 @@ src/
 ├── main.py                 # Application entry point
 └── requirements.txt        # Project dependencies
 
-
-A continuación se detalla el flujo lógico del sistema construido con LangGraph. El agente analiza la intención, optimiza la búsqueda en la base de vectores y decide dinámicamente si requiere herramientas adicionales o expansión de consultas antes de generar la respuesta final.
-
-### Esquema del Grafo
-```mermaid
-graph TD
-    %% Inicio del flujo
-    START((START)) --> intent_analyzer[intent_analyzer]
-    intent_analyzer --> analizar[analizar]
-    analizar --> query_optimizer[query_optimizer]
-    query_optimizer --> retrieval[retrieval]
-
-    %% Lógica de Retrieval (Conditional)
-    retrieval -- tools_condition --> tools{tools}
-    retrieval -- "__end__" --> puntos_de_decision[puntos_de_decision]
-
-    %% Lógica de Tools y Re-rankeo
-    tools -- "expand" --> expansion[expansion]
-    tools -- "end / fail" --> puntos_de_decision
-    expansion --> retrieval
-
-    %% Pasarela de Decisión (Router Principal)
-    puntos_de_decision -- route_generator --> generator[generator]
-    puntos_de_decision -- route_generator --> listing_generator[listing_generator]
-
-    %% Fin del flujo
-    generator --> END((END))
-    listing_generator --> END
-```
