@@ -36,6 +36,17 @@ The agent follows a sophisticated conditional workflow to ensure quality:
 6.  **Grade Retrieval**: A self-correction layer that triggers the **Expansion Node** if the context relevance score is below threshold ($< 1.0$).
 7.  **Dynamic Routing**: A logical gateway routes the state to specialized generators (`Standard Generator` vs. `Listing Generator`) based on the task type.
 
+### 🛠️ Specialized Retrieval System
+
+The system utilizes a hybrid retrieval approach via the `retrieve_docs` tool, combining semantic understanding with strict metadata and keyword constraints.
+
+*   **Hybrid Search & Keyword Ranking:** The tool filters documents based on `ranking_keywords`, ensuring that retrieved chunks contain essential technical terms (e.g., "RAG", "MCP") to maintain high alignment with the user's specific domain.
+*   **Metadata-Driven Filtering:** When available, search results are narrowed down by specific fields like `YEAR` or `CATEGORY`, allowing for precise temporal or thematic queries (e.g., "Posts from 2025 about Vector Search").
+*   **MMR Optimization:** By using **Maximum Marginal Relevance (MMR)**, the system balances relevance with diversity, avoiding redundant information and providing a broader context for the generator.
+*   **Source Grounding:** Every retrieved document is passed with its metadata, ensuring the generators can cite sources and maintain a high level of factual accuracy, significantly reducing hallucinations.
+*   **Self-Correction Integration:** The tool is tightly coupled with the **Grade Retrieval** logic. If the similarity score or content relevance doesn't meet the threshold, the system automatically triggers a query expansion loop.
+
+> **Note on Efficiency:** The retrieval process is optimized via the `Query Optimizer` node, which pre-processes technical jargon and acronyms before the tool is invoked, significantly increasing the hit rate of relevant context.
 
 The following section details the logical flow of the system built with LangGraph. The agent performs intent analysis, optimizes vector database retrieval, and dynamically determines whether additional tools or query expansion are required before generating the final response.
 ### Graph Structure
