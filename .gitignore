@@ -45,6 +45,8 @@ MANIFEST
 *.manifest
 *.spec
 
+jupyter_tests/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
