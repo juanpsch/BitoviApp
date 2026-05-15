@@ -34,6 +34,10 @@ async def ask_agent(question: str):
             "recursion_limit": 20,
             # 3. Pasar el handler dentro de la lista de callbacks
             "callbacks": [langfuse_handler],
+            "metadata": {
+                "session_id": session_id,
+                "langfuse_trace_name": "api_ask_agent"          
+            }
         }
 
         inputs = {
