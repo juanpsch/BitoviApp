@@ -13,11 +13,12 @@ import json
 from scripts.schemas import TaskType
 from agent.state import AgentState
 from langchain_core.runnables import RunnableConfig
-
+from langchain_core.callbacks import CallbackManagerForToolRun
+from langchain_core.runnables import ensure_config
 
 
 @tool
-def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 10):
+def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 10, run_manager: CallbackManagerForToolRun = None):
     """
     Recupera documentos técnicos de la base de conocimientos.
     Args:
@@ -27,6 +28,10 @@ def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 1
     # 1. Extraemos el estado del agente desde el config inyectado por LangGraph
     # El estado vive en 'configurable'
     
+    # Extraer los callbacks hijos del run_manager
+    config = ensure_config()
+    tool_callbacks = config.get("callbacks")    
+    print(f"[TOOL] tool_callbacks detectados: {tool_callbacks}")
     
     # 2. Tomamos 'selected_route' directamente del estado
     # Ya no dependemos de que el LLM lo pase como argumento
@@ -50,7 +55,7 @@ def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 1
     
     # 2. Obtener filtros (Esto sí depende de la query específica)
     print(f"[TOOL] Extrayendo metadata de la query original")
-    filters = utils.extract_filters(original_query)
+    filters = utils.extract_filters(original_query, callbacks=tool_callbacks)
     print(f"[TOOL] Filters: {filters}")    
 
     # --- ESTRATEGIA DE BÚSQUEDA ---

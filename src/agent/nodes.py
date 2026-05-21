@@ -9,6 +9,7 @@ from scripts.schemas import IntentOutput
 from scripts.schemas import TaskType, SearchQueryOutput
 import json
 from scripts.mapping import GLOSARIO_ACRONIMOS
+from langfuse import get_client, observe
 
 # =============================================================================
 # Pydantic Schemas for Structured Outputs
@@ -78,7 +79,7 @@ def intent_analyzer_node(state: AgentState):
     print(f"[INTENT_ANALIZER-NODE] Type: {analysis.intent} | Reason: {analysis.reasoning}")
     
     # Guardamos la intención en el estado para que los siguientes nodos la vean
-    return {"task_type": analysis.intent}
+    return {"task_type": analysis.intent, "intent_reasoning": analysis.reasoning}
 
 def analysis_node(state: AgentState):
     """
@@ -145,12 +146,9 @@ def query_optimizer_node(state: AgentState):
         {"role": "system", "content": system_instruction},
         {"role": "user", "content": user_instruction}
     ])
-    
-    # Post-proceso manual de seguridad (Opcional pero recomendado para 'AI')
+        
     final_query = result.search_query.strip()
-    if final_query.upper() == "AI" or final_query.upper() == "IA":
-        final_query = "Artificial Intelligence LLM RAG"
-
+    
     print(f"[OPTIMIZER] Result: {final_query}")
     
     return {"search_query": final_query}

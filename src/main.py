@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage
 from langfuse import get_client, observe
 from langfuse.langchain import CallbackHandler
 from agent.graph import app as agent_graph
+import os
 
 app = FastAPI()
 
@@ -18,6 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = "development"
 
 @app.get("/ask")
 async def ask_agent(question: str):
@@ -36,7 +38,7 @@ async def ask_agent(question: str):
             "callbacks": [langfuse_handler],
             "metadata": {
                 "session_id": session_id,
-                "langfuse_trace_name": "api_ask_agent"          
+                "langfuse_trace_name": "api_ask_agent"                                
             }
         }
 

@@ -103,7 +103,7 @@ def analyze_search_control(user_query: str) -> SearchControl:
         ("user", user_query)
     ])
 
-def extract_filters(user_query:str):
+def extract_filters(user_query:str, callbacks=None):
 
     llm_structured = llm.with_structured_output(ChunkMetadata)
     # Obtener la lista de categorías permitidas    
@@ -130,12 +130,12 @@ def extract_filters(user_query:str):
     "Mark Repka articles about RAG from 2025" -> {{"category": "RAG", "year": 2025}}
     "Latest post about Kubernetes clusters" -> {{"category": "Kubernetes"}}
     "How to scale an EDA architecture" -> {{"category": "Architecture"}}
-    "List me all post related to RAG written in 2024"{{"category": "RAG", "year": 2024}}
+    "List me all post related to RAG written in 2024" -> {{"category": "RAG", "year": 2024}}
 
     Extract metadata:
     """
     
-    metadata = llm_structured.invoke(prompt)
+    metadata = llm_structured.invoke(prompt, config={"callbacks": callbacks})
     filters = metadata.model_dump(exclude_none=True)
 
     return filters
