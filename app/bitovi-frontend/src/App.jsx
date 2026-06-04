@@ -17,9 +17,13 @@ function App() {
     setSources([])
 
     try {
-      // Llamada a tu backend de Python
-      const res = await fetch(`http://localhost:8000/ask?question=${encodeURIComponent(question)}`);
-      const data = await res.json();      
+      // Llamada a tu backend de Python (POST con body JSON)
+      const res = await fetch('http://localhost:8000/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
       
       if (data.response) {
         setAnswer(data.response.trim());

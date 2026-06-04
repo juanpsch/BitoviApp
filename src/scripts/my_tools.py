@@ -1,5 +1,4 @@
 # retrieve_docs
-# web_search
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -91,8 +90,8 @@ def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 1
 # --- REEMPLAZA EL FINAL DE TU TOOL ---
     
    # 3. FORMATEO PARA EL AGENTE
-    # Extraemos el intent del estado (asegúrate de que 'state' esté disponible en el scope)
-    intent_type = state.get("intent") 
+    # Extraemos el intent del estado. La clave en AgentState es 'task_type'.
+    intent_type = state.get("task_type")
     
     output_data = {
         "metadata_log": {
@@ -126,66 +125,3 @@ def retrieve_docs(query: str, state: Annotated[dict, InjectedState],  k: int = 1
         output_data["documents"].append(doc_entry)
     
     return json.dumps(output_data)
-
-    # # 3. FORMATEO PARA EL AGENTE
-    # retrieved_sections = []
-    # for i, doc in enumerate(docs, 1):
-    #     meta = doc.metadata
-    #     m_title = meta.get('title') or "Untitled Document"
-    #     m_author = meta.get('author') or "Unknown Author"
-    #     m_url = meta.get('source') or meta.get('url') or "No URL"
-    #     m_year = meta.get('year') or "N/A"
-
-    #     doc_block = (
-    #         f"--- Document {i} ---\n"
-    #         f"REFERENCE_TITLE: {m_title}\n"
-    #         f"REFERENCE_AUTHOR: {m_author}\n"
-    #         f"REFERENCE_YEAR: {m_year}\n"
-    #         f"REFERENCE_URL: {m_url}\n"
-    #         f"CONTENT:\n{doc.page_content}\n"
-    #         f"-------------------"
-    #     )
-    #     retrieved_sections.append(doc_block)
-
-    # header = (
-    #     f"--- INTERNAL SEARCH LOG ---\n"
-    #     f"Used Strategy: {selected_route.upper()}\n"
-    #     f"Sorted By: {sort_by}\n"
-    #     f"Docs Delivered: {len(docs)}\n"
-    #     f"---------------------------\n\n"
-    # )
-    
-    # return header + "\n\n".join(retrieved_sections)
-
-# tavily search dev serper, ddgs
-from ddgs import DDGS
-
-@tool
-def web_search(query:str, num_results: int = 10) -> str:
-    """Use this tool whenever you need to access realtime or latest information.
-        Search the web using DuckDuckGo.
-    
-    Args:
-        query: Search query string
-        num_results: Number of results to return (default: 10)
-    
-    Returns:
-        Formatted search results with titles, descriptions, and URLs
-    """
-
-    results = DDGS().text(query=query, max_results=num_results, region='us-en')
-
-    if not results:
-        return f"No results found for '{query}'"
-    
-    formatted_results = [f"Search results for search query: '{query}'"]
-    for i, result in enumerate(results, 1):
-        title = result.get('title', 'No title')
-        href = result.get('href', '')
-        body = result.get('body', 'No description available')
-        
-        text = f"{i}. **{title}**\n   {body}\n   {href}"
-        
-        formatted_results.append(text)
-
-    return "\n\n".join(formatted_results)

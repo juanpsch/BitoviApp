@@ -19,5 +19,8 @@ class AgentState(TypedDict):
     selected_route: str
     search_params: dict
     retry_count: int  # Para controlar el bucle
-    task_type: TaskType    
+    task_type: TaskType
     search_query: str
+    # Justificación de la clasificación de intención (la escribe intent_analyzer_node).
+    # Se declara aquí para que LangGraph no la descarte del estado.
+    intent_reasoning: str
