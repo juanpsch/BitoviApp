@@ -2,7 +2,7 @@ import json
 
 from langchain_core.messages import ToolMessage
 
-from main import build_step, _format_sse, _sources_from_tool_content
+from main import build_step, _format_sse, _sources_from_tool_content, _tool_step_detail
 
 
 def test_format_sse_is_parseable():
@@ -35,7 +35,7 @@ def test_build_step_analizar_reads_route_and_params():
         "analizar",
         {"selected_route": "Convencional", "search_params": {"sort_by": None, "top_k": 10}},
     )
-    assert "estrategia" in step["label"].lower() or "Eligiendo" in step["label"]
+    assert step["label"] == "🧭 Eligiendo estrategia"
     assert step["detail"]["ruta"] == "Convencional"
     assert step["detail"]["top_k"] == 10
 
@@ -82,3 +82,25 @@ def test_sources_from_tool_content_ignores_error_payloads():
     assert _sources_from_tool_content("LOW_RELEVANCE_ERROR: score 0.2") == []
     assert _sources_from_tool_content("No documents found for the query: 'x'.") == []
     assert _sources_from_tool_content("not json") == []
+
+
+def test_sources_from_tool_content_skips_non_dict_items_and_hash_url():
+    content = json.dumps({"documents": [
+        "not-a-dict",
+        {"title": "T", "author": "A", "url": "#"},
+        {"title": "Ok", "author": "A", "url": "https://x/2"},
+    ]})
+    assert _sources_from_tool_content(content) == [
+        {"title": "Ok", "url": "https://x/2", "author": "A"}
+    ]
+
+
+def test_tool_step_detail_handles_non_dict_metadata_log():
+    content = json.dumps({"metadata_log": ["oops"], "documents": []})
+    detail = _tool_step_detail({"messages": [ToolMessage(content=content, tool_call_id="x")]})
+    assert detail == {"estrategia": None, "documentos": None, "orden": None}
+
+
+def test_tool_step_detail_low_relevance():
+    detail = _tool_step_detail({"messages": [ToolMessage(content="LOW_RELEVANCE_ERROR: 0.2", tool_call_id="x")]})
+    assert detail["estado"]

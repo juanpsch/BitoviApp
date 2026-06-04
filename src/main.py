@@ -77,6 +77,8 @@ def _sources_from_tool_content(content) -> list:
 
     sources, seen = [], set()
     for doc in documents:
+        if not isinstance(doc, dict):
+            continue
         url = doc.get("url")
         if not url or url in {"No URL", "#"} or url in seen:
             continue
@@ -101,7 +103,8 @@ def _tool_step_detail(update: dict):
         data = json.loads(content)
     except (json.JSONDecodeError, TypeError):
         return None
-    log = data.get("metadata_log", {}) if isinstance(data, dict) else {}
+    log_raw = data.get("metadata_log", {}) if isinstance(data, dict) else {}
+    log = log_raw if isinstance(log_raw, dict) else {}
     return {
         "estrategia": log.get("strategy"),
         "documentos": log.get("count"),
