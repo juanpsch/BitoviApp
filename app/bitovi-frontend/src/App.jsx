@@ -77,6 +77,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       })
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
