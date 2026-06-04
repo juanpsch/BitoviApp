@@ -309,17 +309,28 @@ CRITICAL RULE: Your answer must be based EXCLUSIVELY on the provided context.
     If the context doesn't have the answer, be honest and say so."""
 
     # 1. Recuperamos la pregunta original (el primer mensaje)
-    user_question = state['messages'][0] 
-    
-    # 2. Recuperamos SOLO los documentos de la última búsqueda exitosa
-    # Buscamos el último ToolMessage que NO sea un error
-    all_tool_messages = [m for m in state['messages'] if isinstance(m, ToolMessage)]
-    
-    # Si no hay mensajes de tool exitosos, esto va a fallar, así que validamos:
-    if not all_tool_messages:
-        return {"messages": [AIMessage(content="Lo siento, no pude encontrar información relevante.")]}
-    
-    last_docs = all_tool_messages[-1] # El último es el que tuvo score 4.04
+    user_question = state['messages'][0]
+
+    # 2. Recuperamos SOLO los documentos de la última búsqueda EXITOSA.
+    # Descartamos los ToolMessage que en realidad son señales de error
+    # (LOW_RELEVANCE_ERROR tras agotar las expansiones, o 'No documents found'),
+    # para no pasárselos al LLM como si fueran contexto válido.
+    def _is_error_payload(content) -> bool:
+        if not isinstance(content, str):
+            return False
+        return content.startswith("LOW_RELEVANCE_ERROR") or content.startswith("No documents found")
+
+    last_docs = next(
+        (m for m in reversed(state['messages'])
+         if isinstance(m, ToolMessage) and not _is_error_payload(m.content)),
+        None
+    )
+
+    # Si no hubo ninguna búsqueda con resultados válidos, respondemos honestamente.
+    if last_docs is None:
+        return {"messages": [AIMessage(
+            content="I don't have articles in the Bitovi blog regarding this specific topic."
+        )]}
 
     # 3. Construimos un historial limpio para el LLM
     clean_messages = [
@@ -382,75 +393,3 @@ def listing_generator_node(state: AgentState):
     
     header = f"He encontrado **{real_total}** artículos relacionados:\n\n"
     return {"messages": [AIMessage(content=header + "".join(cards))]}
-
-
-
-def listing_generator_node2(state: AgentState):
-    print("\n[LISTING_GENERATOR-NODE] Listing Generator (Visual Polish)")
-    
-    messages = state.get('messages', [])
-    tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
-    
-    if not tool_messages:
-        return {"messages": [SystemMessage(content="No articles found.")]}
-    
-    raw_data = tool_messages[-1].content
-    
-    # --- NUEVA LÓGICA DE CONTEO ---
-    try:
-        data_parsed = json.loads(raw_data)
-        count = len(data_parsed) if isinstance(data_parsed, list) else 0
-    except:
-        count = 0
-
-    user_query = messages[0].content.lower()
-    # Detectamos si la intención es contar
-    pide_conteo = any(w in user_query for w in ["cuántos", "how many", "count", "cantidad", "total"])
-
-    if pide_conteo:
-        # Prompt específico para contar sin romper el estilo
-        system_prompt = f"""You are a Technical Librarian.
-        The user wants to know the total number of items.
-        I found exactly {count} articles.
-        
-        TASK: State the total count clearly and professionally.
-        - NO introductory fluff.
-        - DO NOT mention 'Bitovi'.
-        Example: 'I found {count} articles about your request.'
-        """
-    else:
-        # --- TU LÓGICA DE LISTADO ORIGINAL (SIN CAMBIOS) ---
-        system_prompt = """You are a UI/UX Content Specitalist.
-        
-        TASK: Format the JSON metadata into high-contrast Markdown cards.
-        
-        VISUAL HIERARCHY RULES:
-        1. TITLE: Use level 2 header '##' and make it a link: ## [TITLE](URL)
-        2. METADATA: Use standard text with italics for the details to make them look smaller:
-            *Author: AUTHOR* | *Year: YEAR*
-        3. SEPARATION: Use a horizontal rule '---' after each item.
-        
-        STRICT RULES:
-        - NO introductory or closing text.
-        - NO tables.
-        - Title MUST be the largest element.
-        - If URL is missing, use '#'.
-        - DO NOT mention 'Bitovi'.
-        """
-
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Data: {raw_data}")
-    ])
-    
-    return {"messages": [response]}
-
-def should_continue(state: AgentState):
-    last = state['messages'][-1]
-    
-    if hasattr(last, 'tool_calls') and last.tool_calls:
-        return "tools"
-    
-
-    else:
-        return END

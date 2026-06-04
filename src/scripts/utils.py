@@ -44,7 +44,7 @@ vector_store = Chroma(
 llm = ChatOllama(model=LLM_MODEL, base_url=BASE_URL, temperature=0)
 
 
-def define_retrieval_strategy(user_query: str) -> SearchControl:
+def define_retrieval_strategy(user_query: str) -> RestrievalStragegy:
     system_prompt = """
     You are the Strategic Router for a RAG system. Your goal is to analyze the user's query and decide the most efficient retrieval path.
 

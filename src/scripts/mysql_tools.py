@@ -27,11 +27,6 @@ BASE_URL= os.getenv('BASE_URL')
 
 llm = ChatOllama(model=LLM_MODEL, base_url=BASE_URL, reasoning=True)
 
-response = llm.invoke("Hello, how are you?")
-response.pretty_print()
-
-response.additional_kwargs['reasoning_content']
-
 # =============================================================================
 # Database Setup
 # =============================================================================
@@ -41,11 +36,10 @@ def get_db_connection():
     return db
 
 
-db = get_db_connection()
-tables = db.get_usable_table_names()
-SCHEMA = db.get_table_info()
-
-# print(SCHEMA)
+def get_schema():
+    """Devuelve el esquema de la BD. Se evalúa de forma perezosa para no
+    abrir la conexión (ni golpear el disco) al importar el módulo."""
+    return get_db_connection().get_table_info()
 
 # ### SQL Tools
 
@@ -69,7 +63,7 @@ def get_database_schema(table_name: str = None):
         else:
             return f"Error: Table '{table_name}' not found. Available tables: '{', '.join(tables)}'"
     else:
-        return SCHEMA
+        return get_schema()
 
 
 @tool
@@ -77,7 +71,7 @@ def generate_sql_query(question: str, schema_info: str=None):
     """Generate a SQL SELECT query from a natural language question using database schema.
         Always use this after getting schema information."""
     
-    schema_to_use = schema_info if schema_info else SCHEMA
+    schema_to_use = schema_info if schema_info else get_schema()
 
     prompt = f"""Based on this database schema:
                 {schema_to_use}
@@ -159,7 +153,7 @@ def fix_sql_error(original_query: str, error_message: str, question):
                     Original Question: {question}
 
                     Database Schema:
-                    {SCHEMA}
+                    {get_schema()}
 
                     Analyze the error and provide a corrected SQL query that:
                     1. Fixes the specific error mentioned
