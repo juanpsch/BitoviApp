@@ -15,6 +15,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, ToolMessage
 
@@ -166,78 +167,34 @@ def build_step(node_name: str, update: dict):
 
 
 def _extract_sources(messages) -> list:
-    """
-    Reconstruye la lista de fuentes a partir del último ToolMessage exitoso.
-
-    La tool `retrieve_docs` devuelve un JSON con la forma:
-        {"metadata_log": {...}, "documents": [{"title", "author", "url", "year", ...}]}
-
-    El estado del agente NO expone los Document originales, así que parseamos
-    ese payload para alimentar la sección "Fuentes Citadas" del frontend.
-    """
-    sources_list = []
-    seen_urls = set()
-
-    # Buscamos el último ToolMessage que sea un payload válido (no un error).
+    """Rebuild the sources list from the last successful retrieve_docs ToolMessage."""
     for msg in reversed(messages):
-        if not isinstance(msg, ToolMessage):
-            continue
+        if isinstance(msg, ToolMessage):
+            sources = _sources_from_tool_content(msg.content)
+            if sources:
+                return sources
+    return []
 
-        content = msg.content
-        if not isinstance(content, str):
-            continue
-        if content.startswith("LOW_RELEVANCE_ERROR") or content.startswith("No documents found"):
-            continue
 
-        try:
-            data = json.loads(content)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-        documents = data.get("documents") if isinstance(data, dict) else None
-        if not documents:
-            continue
-
-        for doc in documents:
-            url = doc.get("url")
-            if not url or url in {"No URL", "#"} or url in seen_urls:
-                continue
-            sources_list.append({
-                "title": doc.get("title") or "Bitovi Blog Post",
-                "url": url,
-                "author": doc.get("author") or "Bitovi Expert",
-            })
-            seen_urls.add(url)
-
-        # Solo usamos el último retrieval exitoso.
-        break
-
-    return sources_list
+def _build_config() -> dict:
+    """Build the per-request LangGraph config (Langfuse handler + session id)."""
+    session_id = str(uuid.uuid4())
+    return {
+        "configurable": {},
+        "recursion_limit": 20,
+        "callbacks": [CallbackHandler()],
+        "metadata": {
+            "session_id": session_id,
+            "langfuse_trace_name": "api_ask_agent",
+        },
+    }
 
 
 @app.post("/ask")
 async def ask_agent(payload: AskRequest):
     question = payload.question
     try:
-        session_id = str(uuid.uuid4())
-
-        # 2. Inicializar el CallbackHandler de Langfuse.
-        # El SDK v3 detecta automáticamente LANGFUSE_PUBLIC_KEY,
-        # LANGFUSE_SECRET_KEY y LANGFUSE_HOST desde el entorno.
-        langfuse_handler = CallbackHandler()
-
-        # El agente es single-turn: no usamos checkpointer, por lo tanto
-        # no pasamos thread_id (sería inerte). session_id queda en metadata
-        # solo para correlacionar trazas en Langfuse.
-        config = {
-            "configurable": {},
-            "recursion_limit": 20,
-            "callbacks": [langfuse_handler],
-            "metadata": {
-                "session_id": session_id,
-                "langfuse_trace_name": "api_ask_agent",
-            },
-        }
+        config = _build_config()
 
         inputs = {
             "messages": [HumanMessage(content=question)],
@@ -257,3 +214,76 @@ async def ask_agent(payload: AskRequest):
     except Exception as e:
         print(f"--- [ERROR] {str(e)} ---")
         return {"error": str(e)}
+
+
+_GEN_LABELS = {
+    "generator": "✍️ Redactando respuesta",
+    "listing_generator": "🗂️ Armando el listado",
+}
+
+
+@app.post("/ask/stream")
+async def ask_agent_stream(payload: AskRequest):
+    config = _build_config()
+    inputs = {"messages": [HumanMessage(content=payload.question)]}
+
+    async def event_stream():
+        streamed_token = False
+        gen_step_sent = False
+        last_tool_content = None
+        try:
+            async for mode, chunk in agent_graph.astream(
+                inputs, config, stream_mode=["updates", "messages"]
+            ):
+                if mode == "updates":
+                    for node_name, update in chunk.items():
+                        if node_name == "tools":
+                            msgs = update.get("messages", [])
+                            if msgs:
+                                last_tool_content = msgs[-1].content
+
+                        step = build_step(node_name, update)
+                        if step:
+                            yield _format_sse(step)
+
+                        # No-token generators (listing / "no documents" fallback):
+                        # emit their step + full content here.
+                        if node_name in _GEN_LABELS and not streamed_token:
+                            if not gen_step_sent:
+                                yield _format_sse({
+                                    "type": "step", "id": node_name,
+                                    "label": _GEN_LABELS[node_name], "detail": None,
+                                })
+                                gen_step_sent = True
+                            msgs = update.get("messages", [])
+                            text = getattr(msgs[-1], "content", "") if msgs else ""
+                            if text:
+                                yield _format_sse({"type": "token", "text": text})
+
+                elif mode == "messages":
+                    msg_chunk, metadata = chunk
+                    node = metadata.get("langgraph_node")
+                    if node in _GEN_LABELS:
+                        if not gen_step_sent:
+                            yield _format_sse({
+                                "type": "step", "id": node,
+                                "label": _GEN_LABELS[node], "detail": None,
+                            })
+                            gen_step_sent = True
+                        text = getattr(msg_chunk, "content", "")
+                        if text:
+                            streamed_token = True
+                            yield _format_sse({"type": "token", "text": text})
+
+            sources = _sources_from_tool_content(last_tool_content) if last_tool_content else []
+            yield _format_sse({"type": "sources", "sources": sources})
+            yield _format_sse({"type": "done"})
+        except Exception as e:
+            print(f"--- [STREAM ERROR] {e} ---")
+            yield _format_sse({"type": "error", "message": str(e)})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
