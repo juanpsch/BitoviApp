@@ -230,6 +230,7 @@ async def ask_agent_stream(payload: AskRequest):
     async def event_stream():
         streamed_token = False
         gen_step_sent = False
+        gen_content_sent = False
         last_tool_content = None
         try:
             async for mode, chunk in agent_graph.astream(
@@ -240,15 +241,20 @@ async def ask_agent_stream(payload: AskRequest):
                         if node_name == "tools":
                             msgs = update.get("messages", [])
                             if msgs:
-                                last_tool_content = msgs[-1].content
+                                content = msgs[-1].content
+                                # Solo conservamos la última recuperación EXITOSA
+                                # (ignoramos los payloads de error de relevancia baja).
+                                if not (isinstance(content, str)
+                                        and content.startswith("LOW_RELEVANCE_ERROR")):
+                                    last_tool_content = content
 
                         step = build_step(node_name, update)
                         if step:
                             yield _format_sse(step)
 
-                        # No-token generators (listing / "no documents" fallback):
-                        # emit their step + full content here.
-                        if node_name in _GEN_LABELS and not streamed_token:
+                        # Generadores sin tokens (listing / fallback "no documents"):
+                        # emiten su paso + el contenido completo acá.
+                        if node_name in _GEN_LABELS and not streamed_token and not gen_content_sent:
                             if not gen_step_sent:
                                 yield _format_sse({
                                     "type": "step", "id": node_name,
@@ -259,11 +265,12 @@ async def ask_agent_stream(payload: AskRequest):
                             text = getattr(msgs[-1], "content", "") if msgs else ""
                             if text:
                                 yield _format_sse({"type": "token", "text": text})
+                                gen_content_sent = True
 
                 elif mode == "messages":
                     msg_chunk, metadata = chunk
                     node = metadata.get("langgraph_node")
-                    if node in _GEN_LABELS:
+                    if node in _GEN_LABELS and not gen_content_sent:
                         if not gen_step_sent:
                             yield _format_sse({
                                 "type": "step", "id": node,
